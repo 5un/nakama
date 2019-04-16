@@ -65,14 +65,3 @@ ALTER TABLE IF EXISTS users ADD COLUMN IF NOT EXISTS last_online_at BIGINT NOT N
 
 CREATE INDEX ON leaderboard (next_id);
 CREATE INDEX ON leaderboard (prev_id);
-
--- FIXME cannot create constraints until newly added columns are committed, but that causes issues with the migration.
--- -- Commit so we can add constraints on the new columns.
--- COMMIT;
---
--- ALTER TABLE IF EXISTS leaderboard ADD CONSTRAINT fk_next_id_ref_leaderboard FOREIGN KEY (next_id) REFERENCES leaderboard(id);
--- ALTER TABLE IF EXISTS leaderboard ADD CONSTRAINT check_next_id_id CHECK (next_id <> id);
--- ALTER TABLE IF EXISTS leaderboard ADD CONSTRAINT fk_prev_id_ref_leaderboard FOREIGN KEY (prev_id) REFERENCES leaderboard(id);
--- ALTER TABLE IF EXISTS leaderboard ADD CONSTRAINT check_prev_id_id CHECK (prev_id <> id);
-
--- ALTER TABLE IF EXISTS users ADD CONSTRAINT check_last_online_at CHECK (last_online_at >= 0);
