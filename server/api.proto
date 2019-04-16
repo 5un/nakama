@@ -121,6 +121,18 @@ message AuthenticateRequest {
     string public_key_url = 6;
   }
 
+  message ChangePassword {
+    /// Reset Token for Verification.
+    string reset_token = 1;
+    /// The New Password
+    string password = 2;
+  }
+
+  message ResetPassword {
+    /// The Email for the account to reset
+    string email = 1;
+  }
+
   /// Optional collationID to track server response.
   string collationId = 1;
 
@@ -140,6 +152,10 @@ message AuthenticateRequest {
     string device = 7;
     /// Custom ID authentication.
     string custom = 8;
+    /// Reset Password.
+    ResetPassword reset_password = 9;
+    /// Change Password.
+    ChangePassword change_password = 10;
   }
 }
 

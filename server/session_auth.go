@@ -161,6 +161,20 @@ func (a *authenticationService) configure() {
 		a.handleAuth(w, r, a.register)
 	}).Methods("POST", "OPTIONS")
 
+	a.mux.HandleFunc("/user/reset-password", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == "OPTIONS" {
+			return
+		}
+		a.handleAuth(w, r, a.resetPassword)
+	}).Methods("POST", "OPTIONS")
+
+	a.mux.HandleFunc("/user/change-password", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == "OPTIONS" {
+			return
+		}
+		a.handleAuth(w, r, a.changePassword)
+	}).Methods("POST", "OPTIONS")
+
 	a.mux.HandleFunc("/api", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == "OPTIONS" {
 			return
@@ -785,6 +799,111 @@ func (a *authenticationService) loginCustom(authReq *AuthenticateRequest) (strin
 	}
 
 	return userID, handle, disabledAt, "", 0
+}
+
+func (a *authenticationService) resetPassword(authReq *AuthenticateRequest) (string, string, string, Error_Code) {
+	resetPassReq := authReq.GetResetPassword()
+	if resetPassReq == nil {
+		return "", "", errorInvalidPayload, BAD_INPUT
+	} else if resetPassReq.Email == "" {
+		return "", "", "Email is required", BAD_INPUT
+	}
+
+	// query password reset table first
+	var userID string
+	var handle string
+	var disabledAt int64
+	updatedAt := nowMs()
+
+	err := a.db.QueryRow("SELECT id, handle, disabled_at FROM users WHERE email = $1",
+		strings.ToLower(resetPassReq.Email)).
+		Scan(&userID, &handle, &disabledAt)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return "", "", errorIDNotFound, USER_NOT_FOUND
+		} else {
+			a.logger.Warn(errorCouldNotLogin, zap.String("profile", "email"), zap.Error(err))
+			return "", "", errorCouldNotLogin, RUNTIME_EXCEPTION
+		}
+	}
+
+	resetToken := generateNewId()
+	expiration := 24 * 60 * 60 * 1000
+	res, err := a.db.Exec(`
+		INSERT INTO password_reset_token (reset_token, user_id, expiration, created_at, updated_at)
+			VALUES ($1, $2, $3, $4, $4)`,
+				resetToken, userID, expiration, updatedAt)
+
+	if err != nil {
+	 a.logger.Warn("Could not reset password, update error", zap.Error(err))
+	 return "", "", "Could not reset password", RUNTIME_EXCEPTION
+	} else if count, _ := res.RowsAffected(); count == 0 {
+	 a.logger.Warn("Could not reset, rows affected error")
+	 return "", "", "Failed to reset password", RUNTIME_EXCEPTION
+	}
+
+	//TODO: Send out email at this point
+
+	return userID, handle, "", 0
+}
+
+func (a *authenticationService) changePassword(authReq *AuthenticateRequest) (string, string, string, Error_Code) {
+	changePassReq := authReq.GetChangePassword()
+	if changePassReq == nil {
+		return "", "", errorInvalidPayload, BAD_INPUT
+	} else if changePassReq.ResetToken == "" {
+		return "", "", "Reset token is required", BAD_INPUT
+	} else if changePassReq.Password == "" {
+		return "", "", "A new password is required", BAD_INPUT
+	} 
+
+	// Query the password reset table
+	var userID string
+	var handle string
+	var expiration int64
+	var createdAt int64
+	err := a.db.QueryRow("SELECT user_id, expiration, created_at FROM password_reset_token WHERE reset_token = $1",
+		changePassReq.ResetToken).
+		Scan(&userID, &expiration, &createdAt)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return "", "", errorIDNotFound, USER_NOT_FOUND
+		} else {
+			a.logger.Warn(errorCouldNotLogin, zap.String("profile", "email"), zap.Error(err))
+			return "", "", errorCouldNotLogin, RUNTIME_EXCEPTION
+		}
+	}
+
+	// Query the user table
+	var disabledAt int64
+	err2 := a.db.QueryRow("SELECT id, handle, disabled_at FROM users WHERE id = $1", userID).
+		Scan(&userID, &handle, &disabledAt)
+	if err2 != nil {
+		if err2 == sql.ErrNoRows {
+			return "", "", errorIDNotFound, USER_NOT_FOUND
+		} else {
+			a.logger.Warn(errorCouldNotLogin, zap.String("profile", "email"), zap.Error(err))
+			return "", "", errorCouldNotLogin, RUNTIME_EXCEPTION
+		}
+	}
+
+	// Rehash and update password
+	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(changePassReq.Password), bcrypt.DefaultCost)
+	updatedAt := nowMs()
+
+	res, err := a.db.Exec(
+   "UPDATE users SET password = $1, updated_at = $2 WHERE id = $3", hashedPassword, updatedAt, userID)
+
+	 if err != nil {
+	   a.logger.Warn("Could not update user password, update error", zap.Error(err))
+	   return "", "", "Could not update user password", RUNTIME_EXCEPTION
+	 } else if count, _ := res.RowsAffected(); count == 0 {
+	   a.logger.Warn("Could not update user password, rows affected error")
+	   return "", "", "Failed to update user password", RUNTIME_EXCEPTION
+	 }
+
+	return userID, handle, "", 0
 }
 
 func (a *authenticationService) register(authReq *AuthenticateRequest) (string, string, string, Error_Code) {

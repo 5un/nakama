@@ -22,6 +22,7 @@ var RUNTIME_MESSAGES = map[string]string{
 	"*server.AuthenticateRequest_Google":       "authenticaterequest_google",
 	"*server.AuthenticateRequest_Steam":        "authenticaterequest_steam",
 	"*server.AuthenticateRequest_GameCenter_":  "authenticaterequest_gamecenter",
+	"*server.AuthenticateRequest_ChangePassword_": "authenticaterequest_changepassword",
 	"*server.Envelope_Logout":                  "logout",
 	"*server.Envelope_Link":                    "tlink",
 	"*server.Envelope_Unlink":                  "tunlink",
