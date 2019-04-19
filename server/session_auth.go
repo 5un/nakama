@@ -843,7 +843,7 @@ func (a *authenticationService) resetPassword(authReq *AuthenticateRequest) (str
 	}
 
 	//TODO: Send out email at this point
-	sendPasswordResetEmail(resetPassReq.Email, resetToken)
+	sendPasswordResetEmail(resetPassReq.Email, resetToken, a.config)
 
 	return userID, handle, "", 0
 }

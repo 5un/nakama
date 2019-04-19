@@ -42,6 +42,7 @@ type Config interface {
 	GetSocial() *SocialConfig
 	GetRuntime() *RuntimeConfig
 	GetPurchase() *PurchaseConfig
+	GetEmail() *EmailConfig
 }
 
 func ParseArgs(logger *zap.Logger, args []string) Config {
@@ -133,6 +134,7 @@ type config struct {
 	Social    *SocialConfig    `yaml:"social" json:"social" usage:"Properties for social providers"`
 	Runtime   *RuntimeConfig   `yaml:"runtime" json:"runtime" usage:"Script Runtime properties"`
 	Purchase  *PurchaseConfig  `yaml:"purchase" json:"purchase" usage:"In-App Purchase provider configuration"`
+	Email 		*EmailConfig   	 `yaml:"email" json:"email" usage:"Email sending configuration"`
 }
 
 // NewConfig constructs a Config struct which represents server settings.
@@ -151,6 +153,7 @@ func NewConfig() *config {
 		Social:    NewSocialConfig(),
 		Runtime:   NewRuntimeConfig(),
 		Purchase:  NewPurchaseConfig(),
+		Email: 		 NewEmailConfig(),
 	}
 }
 
@@ -192,6 +195,10 @@ func (c *config) GetRuntime() *RuntimeConfig {
 
 func (c *config) GetPurchase() *PurchaseConfig {
 	return c.Purchase
+}
+
+func (c *config) GetEmail() *EmailConfig {
+	return c.Email
 }
 
 // DashboardConfig is configuration relevant to the dashboard
@@ -359,4 +366,28 @@ type GooglePurchaseProviderConfig struct {
 	PackageName        string `yaml:"package" json:"package" usage:"Android package name"`
 	ServiceKeyFilePath string `yaml:"service_key_file" json:"service_key_file" usage:"Absolute file path to the service key JSON file."`
 	TimeoutMs          int    `yaml:"timeout_ms" json:"timeout_ms" usage:"Google connection timeout in milliseconds"`
+}
+
+// EmailConfig is configuration relevant to Email sending
+type EmailConfig struct {
+	AWSAccessKeyID							string 	`yaml:"aws_access_key_id" json:"aws_access_key_id" usage:"The AWS Access Key ID used for email sending"`
+	AWSSecretAccessKey					string  `yaml:"aws_secret_access_key" json:"aws_secret_access_key" usage:"The AWS Secret Access Key used for email sending"`
+	AWSRegion										string  `yaml:"aws_region" json:"aws_region" usage:"The AWS Region for SES"`
+	AppName											string  `yaml:"app_name" json:"app_name" usage:"The app name to be used in email templates"`
+	PasswordEmailSender 				string  `yaml:"password_email_sender" json:"password_email_sender" usage:"The sender email address for password recovery emails"`
+	PasswordEmailSubject				string 	`yaml:"password_email_subject" json:"password_email_subject" usage:"The Subject for password recovery email"`
+	PasswordRecoveryUrl         string  `yaml:"password_recovery_url" json:"password_recovery_url" usage:"The URL for your password recovery page which must accept the GET param reset_token"`
+}
+
+// NewEmailConfig creates a new EmailConfig struct
+func NewEmailConfig() *EmailConfig {
+	return &EmailConfig{
+		AWSAccessKeyID: "",
+		AWSSecretAccessKey: "",
+		AWSRegion: "",
+		AppName: "",
+		PasswordEmailSender: "",
+		PasswordEmailSubject: "",
+		PasswordRecoveryUrl: "",
+	}
 }

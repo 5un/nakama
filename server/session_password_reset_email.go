@@ -2,38 +2,25 @@ package server
 
 import (
     "fmt"
-    
     //go get -u github.com/aws/aws-sdk-go
     "github.com/aws/aws-sdk-go/aws"
     awsSession "github.com/aws/aws-sdk-go/aws/session"
+    "github.com/aws/aws-sdk-go/aws/credentials"
     "github.com/aws/aws-sdk-go/service/ses"
     "github.com/aws/aws-sdk-go/aws/awserr"
 )
 
 const (
-    // Replace sender@example.com with your "From" address. 
-    // This address must be verified with Amazon SES.
-    Sender = "accounts@mailer.signalvideogame.com"
-
-    // Specify a configuration set. To use a configuration
-    // set, comment the next line and line 92.
-    //ConfigurationSet = "ConfigSet"
-    
-    // The subject line for the email.
-    Subject = "Reset your Signalvideogame.com Account Password"
-        
     //The email body for recipients with non-HTML email clients.
     TextBody = "Use this link to generate your sinal password"
     
-    ResetUrl = "https://www.signalvideogame.com/password_recovery.html?reset_token="
-
     // The character encoding for the email.
     CharSet = "UTF-8"
 )
 
-func generatePasswordResetEmailBody(resetToken string) (string) {
-    FullResetUrl := ResetUrl + resetToken
-    HtmlBody :=  "<h1>Dear Signal Player</h1><p>We have received a request to reset your signalvideogame.com password. " +
+func generatePasswordResetEmailBody(resetToken string, config Config) (string) {
+    FullResetUrl := config.GetEmail().PasswordRecoveryUrl + "?reset_token=" + resetToken
+    HtmlBody :=  "<h1>Dear Signal Player</h1><p>We have received a request to reset your " + config.GetEmail().AppName + " password. " +
                 "If you are the person who requested this, please use the following link " + 
                 "to update the password within 24 hours</p>" +
                 "<a href='" + FullResetUrl + "'>" + FullResetUrl + "</a>" +
@@ -41,15 +28,13 @@ func generatePasswordResetEmailBody(resetToken string) (string) {
     return HtmlBody
 }
 
-func sendPasswordResetEmail(Recipient string, resetToken string) {
+func sendPasswordResetEmail(Recipient string, resetToken string, config Config) {
     // Create a new session in the us-west-2 region.
     // Replace us-west-2 with the AWS Region you're using for Amazon SES.
-    sess, err := awsSession.NewSessionWithOptions(
-        awsSession.Options{
-            Config: aws.Config{Region: aws.String("us-east-1")},
-            Profile: "default",
-        },
-    )
+    sess, err := awsSession.NewSession(
+        &aws.Config{Region: aws.String(config.GetEmail().AWSRegion),
+        Credentials: credentials.NewStaticCredentials(config.GetEmail().AWSAccessKeyID, config.GetEmail().AWSSecretAccessKey,""),
+    })
     
     // Create an SES session.
     svc := ses.New(sess)
@@ -67,7 +52,7 @@ func sendPasswordResetEmail(Recipient string, resetToken string) {
             Body: &ses.Body{
                 Html: &ses.Content{
                     Charset: aws.String(CharSet),
-                    Data:    aws.String(generatePasswordResetEmailBody(resetToken)),
+                    Data:    aws.String(generatePasswordResetEmailBody(resetToken, config)),
                 },
                 Text: &ses.Content{
                     Charset: aws.String(CharSet),
@@ -76,10 +61,10 @@ func sendPasswordResetEmail(Recipient string, resetToken string) {
             },
             Subject: &ses.Content{
                 Charset: aws.String(CharSet),
-                Data:    aws.String(Subject),
+                Data:    aws.String(config.GetEmail().PasswordEmailSubject),
             },
         },
-        Source: aws.String(Sender),
+        Source: aws.String(config.GetEmail().PasswordEmailSender),
             // Uncomment to use a configuration set
             //ConfigurationSetName: aws.String(ConfigurationSet),
     }
